@@ -3,87 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TripTalks on MicDrop</title>
+    <title>MicDrop | Live Translation</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 50px; background: #f4f7f6; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #ff6b00; color: white; border: none; padding: 15px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        button:hover { background: #e66000; }
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border-radius: 0.5rem; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 0.75rem; margin-top: 1rem; border-radius: 0.5rem; border: none; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; }
+        button:hover { background: #2563eb; }
         #streamZone { display: none; }
-        .status { color: #666; font-size: 14px; margin-top: 20px; }
+        .live-indicator { display: inline-block; width: 10px; height: 10px; background: #ef4444; border-radius: 50%; margin-right: 5px; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
     <h1>🎙️ MicDrop</h1>
-    <p>TripTalks Live Translation Stream</p>
-
-    <form id="gateForm">
-        <input type="text" id="name" placeholder="Full Name" required>
-        <input type="email" id="email" placeholder="Email Address" required>
-        <input type="text" id="agency" placeholder="Travel Agency Name" required>
-        <button type="submit" id="submitBtn">Enter Webinar</button>
-    </form>
+    
+    <div id="gateZone">
+        <p>Register to join the live translation stream.</p>
+        <form id="regForm">
+            <input type="text" id="name" placeholder="Name" required>
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="text" id="agency" placeholder="Travel Agency" required>
+            <button type="submit" id="regBtn">Join Stream</button>
+        </form>
+    </div>
 
     <div id="streamZone">
-        <h3 style="color: #2ecc71;">✅ Registration Successful</h3>
-        <p>You are now connected to the secure line.</p>
-        <button id="listenBtn">Click to Start Listening</button>
-        <div id="connectionStatus" class="status">Ready to stream...</div>
+        <div style="margin-bottom: 20px;">
+            <span class="live-indicator"></span> <strong>LIVE FEED</strong>
+        </div>
+        <button id="startAudio">🔊 Start Listening</button>
+        <p id="status" style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;">Waiting for audio data...</p>
     </div>
 </div>
 
 <script>
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
-    const gateForm = document.getElementById('gateForm');
+    const G_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
+    // REPLACE THIS WITH YOUR CURRENT NGROK URL
+    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev';
+
+    const regForm = document.getElementById('regForm');
+    const gateZone = document.getElementById('gateZone');
     const streamZone = document.getElementById('streamZone');
-    
-    // FORM SUBMISSION LOGIC
-    gateForm.addEventListener('submit', e => {
+    const status = document.getElementById('status');
+
+    // Handle Registration
+    regForm.onsubmit = async (e) => {
         e.preventDefault();
-        document.getElementById('submitBtn').innerText = "Registering...";
+        document.getElementById('regBtn').innerText = "Connecting...";
         
-        const data = {
+        const formData = {
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
             agency: document.getElementById('agency').value
         };
 
-        fetch(scriptURL, { method: 'POST', body: JSON.stringify(data)})
-            .then(response => {
-                gateForm.style.display = 'none';
-                streamZone.style.display = 'block';
-            })
-            .catch(error => alert('Error connecting to registration server!'));
-    });
+        try {
+            await fetch(G_SHEET_URL, { method: 'POST', body: JSON.stringify(formData) });
+            gateZone.style.display = 'none';
+            streamZone.style.display = 'block';
+        } catch (err) {
+            alert("Registration failed. Please try again.");
+            document.getElementById('regBtn').innerText = "Join Stream";
+        }
+    };
 
-    // AUDIO STREAMING LOGIC (Step 2/3)
-    document.getElementById('listenBtn').onclick = () => {
-        const statusDiv = document.getElementById('connectionStatus');
-        statusDiv.innerText = "Connecting to Host...";
+    // Handle Audio Stream
+    document.getElementById('startAudio').onclick = function() {
+        this.style.display = 'none';
+        status.innerText = "Connecting to MicDrop Radio...";
 
-        // REPLACE THIS with your NGROK URL (e.g. wss://a1b2c3.ngrok-free.app)
-        const socket = new WebSocket('wss://radiatus-unsystematising-jurnee.ngrok-free.dev'); 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+        const socket = new WebSocket(WSS_URL);
         socket.binaryType = 'arraybuffer';
 
         socket.onmessage = async (event) => {
-            try {
-                const buffer = await audioCtx.decodeAudioData(event.data);
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioCtx.destination);
-                source.start();
-                statusDiv.innerText = "🔊 Streaming Live (English)";
-            } catch (e) {
-                console.error("Audio Decode Error:", e);
+            status.innerText = "🔊 Receiving English Stream...";
+            
+            // 1. Convert incoming bytes (Int16) to Float32 for the browser
+            const int16Data = new Int16Array(event.data);
+            const float32Data = new Float32Array(int16Data.length);
+            
+            for (let i = 0; i < int16Data.length; i++) {
+                float32Data[i] = int16Data[i] / 32768.0; 
             }
+
+            // 2. Play the audio buffer
+            const buffer = audioCtx.createBuffer(1, float32Data.length, 44100);
+            buffer.getChannelData(0).set(float32Data);
+            
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioCtx.destination);
+            source.start();
         };
 
-        socket.onerror = () => { statusDiv.innerText = "❌ Host is currently offline."; };
+        socket.onclose = () => {
+            status.innerText = "❌ Connection Lost. Host is offline.";
+            this.style.display = 'block';
+        };
     };
 </script>
 
