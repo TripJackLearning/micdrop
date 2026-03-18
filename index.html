@@ -1,111 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MicDrop | Live Translation</title>
+    <title>MicDrop | Smooth Stream</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 0.75rem; margin: 0.5rem 0; border-radius: 0.5rem; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-        button { width: 100%; padding: 0.75rem; margin-top: 1rem; border-radius: 0.5rem; border: none; background: #3b82f6; color: white; font-weight: bold; cursor: pointer; }
-        button:hover { background: #2563eb; }
-        #streamZone { display: none; }
-        .live-indicator { display: inline-block; width: 10px; height: 10px; background: #ef4444; border-radius: 50%; margin-right: 5px; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        body { font-family: sans-serif; background: #111; color: #eee; text-align: center; padding-top: 100px; }
+        .btn { background: #007bff; color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 20px; cursor: pointer; }
+        #status { margin-top: 20px; color: #888; }
     </style>
 </head>
 <body>
+    <h1>🎙️ MicDrop Live</h1>
+    <button id="playBtn" class="btn">Start Listening</button>
+    <div id="status">Ready</div>
 
-<div class="card">
-    <h1>🎙️ MicDrop</h1>
-    
-    <div id="gateZone">
-        <p>Register to join the live translation stream.</p>
-        <form id="regForm">
-            <input type="text" id="name" placeholder="Name" required>
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="text" id="agency" placeholder="Travel Agency" required>
-            <button type="submit" id="regBtn">Join Stream</button>
-        </form>
-    </div>
+    <script>
+        const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev';
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
 
-    <div id="streamZone">
-        <div style="margin-bottom: 20px;">
-            <span class="live-indicator"></span> <strong>LIVE FEED</strong>
-        </div>
-        <button id="startAudio">🔊 Start Listening</button>
-        <p id="status" style="font-size: 0.8rem; color: #94a3b8; margin-top: 1rem;">Waiting for audio data...</p>
-    </div>
-</div>
+        let audioCtx;
+        let nextStartTime = 0;
 
-<script>
-    const G_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
-    // REPLACE THIS WITH YOUR CURRENT NGROK URL
-    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev';
-
-    const regForm = document.getElementById('regForm');
-    const gateZone = document.getElementById('gateZone');
-    const streamZone = document.getElementById('streamZone');
-    const status = document.getElementById('status');
-
-    // Handle Registration
-    regForm.onsubmit = async (e) => {
-        e.preventDefault();
-        document.getElementById('regBtn').innerText = "Connecting...";
-        
-        const formData = {
-            name: document.getElementById('name').value,
-            email: document.getElementById('email').value,
-            agency: document.getElementById('agency').value
-        };
-
-        try {
-            await fetch(G_SHEET_URL, { method: 'POST', body: JSON.stringify(formData) });
-            gateZone.style.display = 'none';
-            streamZone.style.display = 'block';
-        } catch (err) {
-            alert("Registration failed. Please try again.");
-            document.getElementById('regBtn').innerText = "Join Stream";
-        }
-    };
-
-    // Handle Audio Stream
-    document.getElementById('startAudio').onclick = function() {
-        this.style.display = 'none';
-        status.innerText = "Connecting to MicDrop Radio...";
-
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const socket = new WebSocket(WSS_URL);
-        socket.binaryType = 'arraybuffer';
-
-        socket.onmessage = async (event) => {
-            status.innerText = "🔊 Receiving English Stream...";
+        playBtn.onclick = () => {
+            playBtn.style.display = 'none';
+            status.innerText = "Connecting to high-quality stream...";
             
-            // 1. Convert incoming bytes (Int16) to Float32 for the browser
-            const int16Data = new Int16Array(event.data);
-            const float32Data = new Float32Array(int16Data.length);
-            
-            for (let i = 0; i < int16Data.length; i++) {
-                float32Data[i] = int16Data[i] / 32768.0; 
-            }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+            const socket = new WebSocket(WSS_URL);
+            socket.binaryType = 'arraybuffer';
 
-            // 2. Play the audio buffer
-            const buffer = audioCtx.createBuffer(1, float32Data.length, 44100);
-            buffer.getChannelData(0).set(float32Data);
-            
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioCtx.destination);
-            source.start();
+            socket.onmessage = async (event) => {
+                // 1. Decode the Int16 bytes to Float32
+                const int16Data = new Int16Array(event.data);
+                const float32Data = new Float32Array(int16Data.length);
+                for (let i = 0; i < int16Data.length; i++) {
+                    float32Data[i] = int16Data[i] / 32768.0;
+                }
+
+                // 2. Create Audio Buffer
+                const buffer = audioCtx.createBuffer(1, float32Data.length, 44100);
+                buffer.getChannelData(0).set(float32Data);
+
+                // 3. Scheduling (The Buffer Logic)
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+
+                const currentTime = audioCtx.currentTime;
+                // If we are behind, sync to now + a tiny safety buffer (0.1s)
+                if (nextStartTime < currentTime) {
+                    nextStartTime = currentTime + 0.1; 
+                }
+
+                source.start(nextStartTime);
+                nextStartTime += buffer.duration;
+                
+                status.innerText = "🔊 Streaming Clean Audio";
+            };
+
+            socket.onclose = () => { status.innerText = "❌ Host Offline"; };
         };
-
-        socket.onclose = () => {
-            status.innerText = "❌ Connection Lost. Host is offline.";
-            this.style.display = 'block';
-        };
-    };
-</script>
-
+    </script>
 </body>
 </html>
