@@ -1,25 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripTalks on MicDrop</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 50px; background: #f4f7f6; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #ff6b00; color: white; border: none; padding: 15px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background: #e66000; }
+        #streamZone { display: none; }
+        .status { color: #666; font-size: 14px; margin-top: 20px; }
+    </style>
+</head>
 <body>
-    <h1>TripTalks on MicDrop (Radio Mode)</h1>
-    <button id="start">Start Listening</button>
 
-    <script>
-        const btn = document.getElementById('start');
-        btn.onclick = () => {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            // Use your NGROK URL here later (e.g., wss://your-name.ngrok-free.app)
-            const socket = new WebSocket('ws://localhost:8000');
-            socket.binaryType = 'arraybuffer';
+<div class="container">
+    <h1>🎙️ MicDrop</h1>
+    <p>TripTalks Live Translation Stream</p>
 
-            socket.onmessage = async (event) => {
-                const audioBuffer = await audioCtx.decodeAudioData(event.data);
+    <form id="gateForm">
+        <input type="text" id="name" placeholder="Full Name" required>
+        <input type="email" id="email" placeholder="Email Address" required>
+        <input type="text" id="agency" placeholder="Travel Agency Name" required>
+        <button type="submit" id="submitBtn">Enter Webinar</button>
+    </form>
+
+    <div id="streamZone">
+        <h3 style="color: #2ecc71;">✅ Registration Successful</h3>
+        <p>You are now connected to the secure line.</p>
+        <button id="listenBtn">Click to Start Listening</button>
+        <div id="connectionStatus" class="status">Ready to stream...</div>
+    </div>
+</div>
+
+<script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
+    const gateForm = document.getElementById('gateForm');
+    const streamZone = document.getElementById('streamZone');
+    
+    // FORM SUBMISSION LOGIC
+    gateForm.addEventListener('submit', e => {
+        e.preventDefault();
+        document.getElementById('submitBtn').innerText = "Registering...";
+        
+        const data = {
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            agency: document.getElementById('agency').value
+        };
+
+        fetch(scriptURL, { method: 'POST', body: JSON.stringify(data)})
+            .then(response => {
+                gateForm.style.display = 'none';
+                streamZone.style.display = 'block';
+            })
+            .catch(error => alert('Error connecting to registration server!'));
+    });
+
+    // AUDIO STREAMING LOGIC (Step 2/3)
+    document.getElementById('listenBtn').onclick = () => {
+        const statusDiv = document.getElementById('connectionStatus');
+        statusDiv.innerText = "Connecting to Host...";
+
+        // REPLACE THIS with your NGROK URL (e.g. wss://a1b2c3.ngrok-free.app)
+        const socket = new WebSocket('ws://localhost:8000'); 
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        socket.binaryType = 'arraybuffer';
+
+        socket.onmessage = async (event) => {
+            try {
+                const buffer = await audioCtx.decodeAudioData(event.data);
                 const source = audioCtx.createBufferSource();
-                source.buffer = audioBuffer;
+                source.buffer = buffer;
                 source.connect(audioCtx.destination);
                 source.start();
-            };
+                statusDiv.innerText = "🔊 Streaming Live (English)";
+            } catch (e) {
+                console.error("Audio Decode Error:", e);
+            }
         };
-    </script>
+
+        socket.onerror = () => { statusDiv.innerText = "❌ Host is currently offline."; };
+    };
+</script>
+
 </body>
 </html>
