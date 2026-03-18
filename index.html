@@ -1,91 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MicDrop | Quick Connect</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>MicDrop | AI Audio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { background: #1e293b; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-size: 1rem; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .status { margin-top: 15px; font-size: 0.85rem; color: #94a3b8; }
-        #my-id-display { color: #facc15; font-weight: bold; font-size: 1.2rem; margin: 10px 0; display: block; }
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }
+        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; display: inline-block; width: 300px; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; }
+        #status { margin-top: 20px; color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>🎙️ MicDrop P2P</h2>
-    
-    <div id="setup-zone">
-        <p>Create a Short Room ID:</p>
-        <input type="text" id="custom-id" placeholder="e.g. trip123">
-        <button class="btn" onclick="startPeer()">Start Station</button>
-    </div>
-
-    <div id="main-zone" style="display:none;">
-        <p>Your Station ID:</p>
-        <span id="my-id-display">---</span>
-        <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;">
-        <p>Listen to a Friend:</p>
-        <input type="text" id="friend-id" placeholder="Enter their ID">
-        <button class="btn" onclick="connectToFriend()" style="background: #10b981;">Connect & Listen</button>
-        <div id="status" class="status">Initializing...</div>
-    </div>
-    
-    <audio id="remote-audio" autoplay></audio>
+<div class="card">
+    <h2>🎙️ TripTalks AI</h2>
+    <p>Translation: <b>English → Hindi</b></p>
+    <button id="startBtn" class="btn">🔊 START LISTENING</button>
+    <div id="status">System Offline</div>
 </div>
 
 <script>
-    let peer;
-    const status = document.getElementById('status');
-    const remoteAudio = document.getElementById('remote-audio');
+    // UPDATE THIS URL FROM YOUR NGROK TERMINAL
+    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev'; 
 
-    function startPeer() {
-        const customId = document.getElementById('custom-id').value.trim();
-        if (!customId) return alert("Please enter an ID first!");
+    document.getElementById('startBtn').onclick = function() {
+        this.style.background = "#10b981";
+        this.innerText = "LISTENING...";
+        document.getElementById('status').innerText = "Connecting to Host...";
 
-        // Initialize Peer with your custom short ID
-        peer = new Peer(customId);
+        const socket = new WebSocket(WSS_URL);
+        socket.binaryType = 'arraybuffer';
 
-        peer.on('open', (id) => {
-            document.getElementById('setup-zone').style.display = 'none';
-            document.getElementById('main-zone').style.display = 'block';
-            document.getElementById('my-id-display').innerText = id;
-            status.innerText = "Station is Live!";
-        });
-
-        peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                alert("That ID is taken! Try a different one.");
-                location.reload();
-            } else {
-                status.innerText = "Error: " + err.type;
-            }
-        });
-
-        // HOST: Answer incoming calls
-        peer.on('call', (call) => {
-            status.innerText = "Connection request...";
-            navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-                call.answer(stream);
-                status.innerText = "🔴 STREAMING LIVE";
+        socket.onmessage = (event) => {
+            document.getElementById('status').innerText = "🔊 Playing Translation...";
+            
+            // 1. Convert incoming bytes to a virtual MP3 file
+            const blob = new Blob([event.data], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            
+            // 2. Play the virtual file
+            const audio = new Audio(url);
+            audio.play().catch(err => {
+                document.getElementById('status').innerText = "⚠️ Interaction Required! Click screen.";
             });
-        });
-    }
 
-    function connectToFriend() {
-        const friendID = document.getElementById('friend-id').value.trim();
-        status.innerText = "Dialing " + friendID + "...";
-        
-        // Call them with a dummy stream
-        const call = peer.call(friendID, new MediaStream());
-        
-        call.on('stream', (remoteStream) => {
-            status.innerText = "🔊 Connected! Audio receiving.";
-            remoteAudio.srcObject = remoteStream;
-        });
-    }
+            // 3. Clean up memory after playing
+            audio.onended = () => {
+                URL.revokeObjectURL(url);
+                document.getElementById('status').innerText = "Ready for next sentence...";
+            };
+        };
+
+        socket.onclose = () => {
+            document.getElementById('status').innerText = "❌ Connection Lost";
+        };
+    };
 </script>
 </body>
 </html>
