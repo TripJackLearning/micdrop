@@ -1,60 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MicDrop | AI Audio</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MicDrop Cloud</title>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding-top: 50px; }
-        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; display: inline-block; width: 300px; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; }
-        #status { margin-top: 20px; color: #94a3b8; font-size: 0.9rem; }
+        .btn { background: #3b82f6; padding: 15px; border: none; border-radius: 8px; color: white; cursor: pointer; }
     </style>
 </head>
 <body>
+    <h2>🎙️ AI Voice Postbox</h2>
+    <button id="startBtn" class="btn" onclick="startPolling()">🔊 Start Listening</button>
+    <p id="status">Waiting for user...</p>
 
-<div class="card">
-    <h2>🎙️ TripTalks AI</h2>
-    <p>Translation: <b>English → Hindi</b></p>
-    <button id="startBtn" class="btn">🔊 START LISTENING</button>
-    <div id="status">System Offline</div>
-</div>
+    <script>
+        // REPLACE THIS with your actual Firebase URL
+        const FILE_URL = "https://storage.googleapis.com/micdrop-7fd11.appspot.com/latest.mp3";
+        let lastTimestamp = "";
 
-<script>
-    // UPDATE THIS URL FROM YOUR NGROK TERMINAL
-    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev'; 
-
-    document.getElementById('startBtn').onclick = function() {
-        this.style.background = "#10b981";
-        this.innerText = "LISTENING...";
-        document.getElementById('status').innerText = "Connecting to Host...";
-
-        const socket = new WebSocket(WSS_URL);
-        socket.binaryType = 'arraybuffer';
-
-        socket.onmessage = (event) => {
-            document.getElementById('status').innerText = "🔊 Playing Translation...";
+        function startPolling() {
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('status').innerText = "Watching for new translations...";
             
-            // 1. Convert incoming bytes to a virtual MP3 file
-            const blob = new Blob([event.data], { type: 'audio/mp3' });
-            const url = URL.createObjectURL(blob);
-            
-            // 2. Play the virtual file
-            const audio = new Audio(url);
-            audio.play().catch(err => {
-                document.getElementById('status').innerText = "⚠️ Interaction Required! Click screen.";
-            });
+            setInterval(async () => {
+                try {
+                    // Check headers to see if file was modified
+                    const head = await fetch(FILE_URL, { method: 'HEAD', cache: 'no-store' });
+                    const currentModified = head.headers.get('Last-Modified');
 
-            // 3. Clean up memory after playing
-            audio.onended = () => {
-                URL.revokeObjectURL(url);
-                document.getElementById('status').innerText = "Ready for next sentence...";
-            };
-        };
-
-        socket.onclose = () => {
-            document.getElementById('status').innerText = "❌ Connection Lost";
-        };
-    };
-</script>
+                    if (currentModified && currentModified !== lastTimestamp) {
+                        lastTimestamp = currentModified;
+                        const audio = new Audio(FILE_URL + "?cb=" + Date.now());
+                        audio.play();
+                        document.getElementById('status').innerText = "🔊 Playing new message!";
+                    }
+                } catch (e) { console.log("Waiting for first file..."); }
+            }, 2500);
+        }
+    </script>
 </body>
 </html>
