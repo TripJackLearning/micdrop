@@ -1,78 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MicDrop | AI Live Translation</title>
+    <title>MicDrop Live</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        .btn { background: #3b82f6; color: white; border: none; padding: 1rem 2rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1rem; margin-top: 10px; }
-        .btn:hover { background: #2563eb; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
-        #streamZone { display: none; } /* HIDDEN BY DEFAULT */
-        .live-tag { color: #ef4444; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 20px; }
-        #status { font-size: 0.8rem; color: #64748b; margin-top: 15px; }
+        body { font-family: system-ui, sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 400px; text-align: center; }
+        .btn { background: #3b82f6; color: white; border: none; padding: 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; width: 100%; margin-top: 1rem; }
+        input, select { width: 100%; padding: 0.7rem; margin: 0.5rem 0; border-radius: 0.4rem; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; }
+        #streamZone { display: none; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <div id="gateZone">
-        <h2>🎙️ TripTalks MicDrop</h2>
-        <p>Enter your details to join the session.</p>
+        <h2>🎙️ TripTalks</h2>
         <form id="regForm">
-            <input type="text" id="name" placeholder="Full Name" required>
-            <input type="email" id="email" placeholder="Email Address" required>
-            <input type="text" id="agency" placeholder="Travel Agency" required>
-            <select id="prefLang">
-                <option value="hi">Translate to: Hindi</option>
-                <option value="ta">Translate to: Tamil</option>
-            </select>
+            <input type="text" id="name" placeholder="Name" required>
+            <input type="email" id="email" placeholder="Email" required>
+            <select id="lang"><option value="hi">Hindi</option><option value="ta">Tamil</option></select>
             <button type="submit" class="btn">Enter Stream</button>
         </form>
     </div>
 
     <div id="streamZone">
-        <p class="live-tag">● LIVE AI TRANSLATION</p>
-        <h3 id="welcomeMsg">Welcome</h3>
-        <button id="startAudio" class="btn">🔊 Start Listening</button>
-        <p id="status">Ready to receive audio...</p>
+        <p style="color: #ef4444; font-weight: bold;">● LIVE TRANSLATION</p>
+        <button id="listenBtn" class="btn">🔊 Start Audio Feed</button>
+        <p id="status" style="color: #94a3b8; font-size: 0.8rem; margin-top: 1rem;">Waiting for host...</p>
     </div>
 </div>
 
 <script>
-    const G_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
-    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev'; 
+    const WSS_URL = 'wss://radiatus-unsystematising-jurnee.ngrok-free.dev'; // UPDATE THIS
+    const G_SHEET = 'https://script.google.com/macros/s/AKfycbyamaVliSr6puEUQYUiOPdPSGEku11dR_e4G9C5kSdXj5j5qoBZP4cXXq21B4Y7NwzY/exec';
 
     const regForm = document.getElementById('regForm');
-    const gateZone = document.getElementById('gateZone');
-    const streamZone = document.getElementById('streamZone');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     regForm.onsubmit = async (e) => {
         e.preventDefault();
-        const name = document.getElementById('name').value;
-        const lang = document.getElementById('prefLang').value;
+        const data = { name: document.getElementById('name').value, lang: document.getElementById('lang').value };
         
-        const formData = {
-            name: name,
-            email: document.getElementById('email').value,
-            agency: document.getElementById('agency').value,
-            language: lang
-        };
+        // UI Switch
+        document.getElementById('gateZone').style.display = 'none';
+        document.getElementById('streamZone').style.display = 'block';
 
-        // UI Transition
-        gateZone.style.display = 'none';
-        streamZone.style.display = 'block';
-        document.getElementById('welcomeMsg').innerText = `Hello, ${name}`;
-
-        // Send to Google Sheet (Async)
-        fetch(G_SHEET_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(formData) });
+        // Submit to Sheet
+        fetch(G_SHEET, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
     };
 
-    document.getElementById('startAudio').onclick = function() {
+    document.getElementById('listenBtn').onclick = function() {
         this.style.display = 'none';
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const socket = new WebSocket(WSS_URL);
         socket.binaryType = 'arraybuffer';
 
@@ -83,10 +62,8 @@
                 source.buffer = buffer;
                 source.connect(audioCtx.destination);
                 source.start(0);
-                document.getElementById('status').innerText = "🔊 Playing AI Translation...";
-            } catch (e) {
-                console.error("Audio decoding error.");
-            }
+                document.getElementById('status').innerText = "🔊 Receiving English -> Hindi Translation";
+            } catch (e) { console.error(e); }
         };
     };
 </script>
