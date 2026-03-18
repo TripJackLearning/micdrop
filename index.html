@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
 <body>
-    <h1>TripTalks on MicDrop</h1>
-    <button id="join">Join Live Stream</button>
-    <div id="status">Status: Waiting...</div>
+    <h1>TripTalks on MicDrop (Radio Mode)</h1>
+    <button id="start">Start Listening</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <script>
-        const room = new LivekitClient.Room();
-        
-        document.getElementById('join').onclick = async () => {
-            // This URL will be your server's public address
-            await room.connect('ws://localhost:7880', 'YOUR_TOKEN');
-            document.getElementById('status').innerText = "Status: Listening to Host...";
-        };
+        const btn = document.getElementById('start');
+        btn.onclick = () => {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Use your NGROK URL here later (e.g., wss://your-name.ngrok-free.app)
+            const socket = new WebSocket('ws://localhost:8000');
+            socket.binaryType = 'arraybuffer';
 
-        room.on('trackSubscribed', (track) => {
-            if (track.kind === 'audio') {
-                track.attach(); // This plays the audio through the agent's speakers
-            }
-        });
+            socket.onmessage = async (event) => {
+                const audioBuffer = await audioCtx.decodeAudioData(event.data);
+                const source = audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioCtx.destination);
+                source.start();
+            };
+        };
     </script>
 </body>
 </html>
