@@ -65,7 +65,7 @@
         statusDiv.innerText = "Connecting to Host...";
 
         // REPLACE THIS with your NGROK URL (e.g. wss://a1b2c3.ngrok-free.app)
-        const socket = new WebSocket('ws://localhost:8000'); 
+        const socket = new WebSocket('wss://radiatus-unsystematising-jurnee.ngrok-free.dev'); 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         socket.binaryType = 'arraybuffer';
