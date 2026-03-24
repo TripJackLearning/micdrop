@@ -4,39 +4,58 @@
     <title>MicDrop Live</title>
     <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; }
-        #feed { width: 480px; border-radius: 10px; border: 4px solid #3b82f6; margin-top: 20px; }
-        #transcript { margin: 20px auto; width: 480px; height: 150px; overflow-y: auto; background: #1e293b; padding: 10px; text-align: left; }
+        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: #1e293b; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        #feed { width: 100%; max-width: 400px; border-radius: 10px; border: 3px solid #3b82f6; background: #000; min-height: 200px; }
+        #transcript { margin-top: 20px; height: 150px; overflow-y: auto; background: #0f172a; padding: 15px; text-align: left; border-radius: 8px; border: 1px solid #334155; font-size: 14px; line-height: 1.6; }
+        .btn { background: #10b981; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 20px; }
+        .btn:hover { background: #059669; }
+        .status { font-size: 12px; color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>🔴 MicDrop Live Stream</h1>
-    <button id="playBtn" style="padding:10px; background:#10b981; color:white; border:none; cursor:pointer;">CLICK TO UNMUTE AUDIO</button>
-    <br>
-    <img id="feed" src="" alt="Waiting for Video...">
-    <div id="transcript"></div>
+
+    <div class="container">
+        <h1>🎙️ MicDrop Live</h1>
+        <button id="playBtn" class="btn">🔊 ACTIVATE AUDIO</button>
+        <br>
+        <img id="feed" src="" alt="Waiting for stream...">
+        <div id="transcript"><i>Waiting for speech...</i></div>
+        <div id="conn-status" class="status">Connecting to Ably...</div>
+    </div>
 
     <script>
+        // Use your SUBSCRIBE-ONLY KEY here
         const ably = new Ably.Realtime('YOUR_SUBSCRIBE_ONLY_KEY');
         const channel = ably.channels.get('micdrop-room');
 
-        // VIDEO
+        ably.connection.on('connected', () => {
+            document.getElementById('conn-status').innerText = "🟢 Connected to Cloud";
+        });
+
+        // Toggle button to handle browser auto-play restrictions
+        document.getElementById('playBtn').onclick = function() {
+            this.innerText = "🎧 AUDIO ACTIVE";
+            this.style.background = "#3b82f6";
+        };
+
+        // VIDEO RECEIVER
         channel.subscribe('v', (m) => {
             document.getElementById('feed').src = "data:image/jpeg;base64," + m.data;
         });
 
-        // TRANSCRIPT
+        // TRANSCRIPT RECEIVER
         channel.subscribe('t', (m) => {
             const div = document.getElementById('transcript');
-            div.innerHTML += `<div>▶ ${m.data}</div>`;
+            if(div.innerHTML.includes("Waiting")) div.innerHTML = "";
+            div.innerHTML += `<div style="margin-bottom:8px; border-left: 3px solid #3b82f6; padding-left: 10px;">${m.data}</div>`;
             div.scrollTop = div.scrollHeight;
         });
 
-        // AUDIO
+        // AUDIO RECEIVER
         channel.subscribe('a', (m) => {
-            const audioData = "data:audio/mp3;base64," + m.data;
-            const audio = new Audio(audioData);
-            audio.play().catch(e => console.log("Click the green button first!"));
+            const audio = new Audio("data:audio/mp3;base64," + m.data);
+            audio.play().catch(e => console.log("User must click Activate Audio first."));
         });
     </script>
 </body>
